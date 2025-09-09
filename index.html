@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Beauness Pop‑Shake</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; height: 100%; background: #fff8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans Thai', sans-serif; }
+    .wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; padding: 24px; gap: 16px; }
+    h1 { margin: 0; color: #ff6600; font-size: 28px; letter-spacing: 0.3px; }
+    .panel { background: #ffffff; border: 1px solid #eee4da; border-radius: 16px; padding: 16px; width: min(520px, 92vw); box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+    .score { display: flex; justify-content: space-between; align-items: center; font-size: 16px; color: #4a4a4a; }
+    .big { font-size: 40px; font-weight: 800; color: #222; }
+    .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    button { border: 0; border-radius: 12px; padding: 12px 14px; font-size: 16px; cursor: pointer; background: #ff8833; color: white; }
+    button.secondary { background: #ffd9bf; color: #4a2600; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .imgWrap { display: grid; place-items: center; margin: 10px 0; }
+    img { width: min(60vw, 360px); height: auto; user-select: none; -webkit-user-drag: none; touch-action: manipulation; }
+    .hint { color: #777; font-size: 12px; text-align: center; }
+    .foot { font-size: 12px; color: #999; text-align: center; margin-top: 6px; }
+    .row { display: flex; justify-content: space-between; gap: 10px; }
+    .row > div { flex: 1; }
+    .share { margin-top: 10px; width: 100%; background: #222; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="wrap" oncontextmenu="return false;">
+    <h1>Beauness Pop‑Shake</h1>
+    <div class="panel">
+      <div class="score">
+        <div>เวลา: <span id="time">10.0</span>s</div>
+        <div>คะแนน: <span class="big" id="score">0</span></div>
+        <div>สถิติสูงสุด: <span id="best">0</span></div>
+      </div>
+      <div class="imgWrap">
+        <img id="shake" src="shake1.png" alt="Beauness Pop‑Shake">
+      </div>
+      <div class="btns">
+        <button id="startBtn">เริ่มเล่น (10s)</button>
+        <button id="resetBtn" class="secondary">เริ่มใหม่</button>
+      </div>
+      <button id="shareBtn" class="share">คัดลอกผลลัพธ์เพื่อแชร์</button>
+      <div class="hint">เคล็ดลับ: แตะ/คลิกภาพเพื่อเก็บคะแนน ขณะเวลาเดิน</div>
+    </div>
+    <div class="foot">© Beauness — Demo game for community engagement</div>
+  </div>
+
+  <script>
+    const img = document.getElementById('shake');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const bestEl = document.getElementById('best');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const shareBtn = document.getElementById('shareBtn');
+
+    let playing = false;
+    let score = 0;
+    let t = 10.0;
+    let lastFrame = 0;
+    let raf = null;
+
+    // Prevent gestures that trigger zoom/menu on mobile
+    document.addEventListener('gesturestart', (e)=> e.preventDefault());
+    document.addEventListener('dblclick', (e)=> e.preventDefault());
+
+    const BEST_KEY = 'beauness_popshake_best';
+    const best = Number(localStorage.getItem(BEST_KEY) || 0);
+    bestEl.textContent = best;
+
+    function setScore(v) { score = v; scoreEl.textContent = v; }
+    function setTime(v) { timeEl.textContent = v.toFixed(1); }
+
+    function tick(ts) {
+      if (!playing) return;
+      if (!lastFrame) lastFrame = ts;
+      const dt = (ts - lastFrame) / 1000;
+      lastFrame = ts;
+
+      t -= dt;
+      if (t <= 0) {
+        t = 0;
+        playing = false;
+        setTime(t);
+        startBtn.disabled = false;
+        img.style.opacity = '1';
+        // Save best
+        const curBest = Number(localStorage.getItem(BEST_KEY) || 0);
+        if (score > curBest) {
+          localStorage.setItem(BEST_KEY, String(score));
+          bestEl.textContent = score;
+          alert('ทำสถิติใหม่! 🎉 คะแนน: ' + score);
+        } else {
+          alert('หมดเวลา! คะแนน: ' + score);
+        }
+        return;
+      }
+      setTime(t);
+      raf = requestAnimationFrame(tick);
+    }
+
+    function startGame() {
+      if (playing) return;
+      playing = true;
+      setScore(0);
+      t = 10.0;
+      setTime(t);
+      lastFrame = 0;
+      startBtn.disabled = true;
+      img.style.opacity = '1';
+      raf = requestAnimationFrame(tick);
+    }
+
+    function resetGame() {
+      playing = false;
+      cancelAnimationFrame(raf);
+      lastFrame = 0;
+      t = 10.0;
+      setScore(0);
+      setTime(t);
+      startBtn.disabled = false;
+      img.style.opacity = '1';
+      img.src = 'shake1.png';
+    }
+
+    function popShake() {
+      if (!playing) return; // only count during active timer
+      setScore(score + 1);
+      img.src = (score % 2 === 0) ? 'shake2.png' : 'shake1.png';
+      img.style.transform = 'scale(0.98)';
+      setTimeout(()=> img.style.transform = 'scale(1)', 60);
+    }
+
+    function shareResult() {
+      const msg = `ฉันทำได้ ${score} แต้ม ใน Beauness Pop‑Shake (10s)! #BeaunessPopShake`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(msg).then(()=> {
+          alert('คัดลอกผลลัพธ์แล้ว! นำไปวางใน Facebook Group / LINE ได้เลย');
+        }, ()=> {
+          prompt('คัดลอกด้วยตนเอง:', msg);
+        });
+      } else {
+        prompt('คัดลอกด้วยตนเอง:', msg);
+      }
+    }
+
+    img.addEventListener('pointerdown', popShake);
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+    shareBtn.addEventListener('click', shareResult);
+  </script>
+</body>
+</html>
